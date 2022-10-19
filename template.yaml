@@ -10,8 +10,12 @@ Globals:
     Timeout: 300
 
 Parameters:
-  AlarmNotificationTopic:
-    Description: SNS Topic ARN for sending notifications
+  AlarmNotificationTopicInfo:
+    Description: SNS Topic ARN for sending INFO notifications
+    Type: 'String'
+    Default: 'arn:aws:sns:ap-southeast-2:978697126183:AlarmNotificationTopic'
+  AlarmNotificationTopicCritical:
+    Description: SNS Topic ARN for sending CRITICAL notifications
     Type: 'String'
     Default: 'arn:aws:sns:ap-southeast-2:978697126183:AlarmNotificationTopic'
   McczTgwRouteTableIdProd:
@@ -50,8 +54,6 @@ Resources:
         - AttributeName: 'SortKey'
           KeyType: 'RANGE'
       BillingMode: PAY_PER_REQUEST
-      StreamSpecification: 
-        StreamViewType: NEW_IMAGE
       
   ###########################################################################
   #  Lambda
@@ -103,7 +105,7 @@ Resources:
           MCCZ_TGW_ROUTE_TABLE_ID_PROD: !Ref McczTgwRouteTableIdProd
           MCCZ_TGW_ROUTE_TABLE_ID_NONPROD: !Ref McczTgwRouteTableIdNonProd
           TABLE_MCCZ_VPC_ROUTES: !Ref McczVpcRoutesTable
-          SNS_TOPIC_ARN: !Ref AlarmNotificationTopic
+          SNS_TOPIC_ARN: !Ref AlarmNotificationTopicCritical
 
   ###########################################################################
   #  Cloudwatch LogGroup for lambda
@@ -178,7 +180,7 @@ Resources:
                 Action:
                   - 'sns:Publish'
                 Resource:
-                  - !Ref AlarmNotificationTopic
+                  - !Ref AlarmNotificationTopicCritical
               - Effect: 'Allow'
                 Action:
                   - 'dynamodb:Query*'
@@ -196,9 +198,9 @@ Resources:
       AlarmName: TgwRouteTblRoutesCountProdAlarm
       AlarmDescription: Alarms when VPN Propagated route count of the Prod Transit Gateway Route Table breaches the thresold
       AlarmActions:
-        - !Ref AlarmNotificationTopic
+        - !Ref AlarmNotificationTopicInfo
       OKActions:
-        - !Ref AlarmNotificationTopic
+        - !Ref AlarmNotificationTopicInfo
       MetricName: 'tgw_route_tbl_routes_count_prod'
       Namespace: 'ato'
       Dimensions: 
@@ -217,9 +219,9 @@ Resources:
       AlarmName: TgwRouteTblRoutesCountNonProdAlarm
       AlarmDescription: Alarms when VPN Propagated route count of the NonProd Transit Gateway Route Table breaches the thresold
       AlarmActions:
-        - !Ref AlarmNotificationTopic
+        - !Ref AlarmNotificationTopicInfo
       OKActions:
-        - !Ref AlarmNotificationTopic
+        - !Ref AlarmNotificationTopicInfo
       MetricName: 'tgw_route_tbl_routes_count_nonprod'
       Namespace: 'ato'
       Dimensions: 
