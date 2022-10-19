@@ -22,6 +22,14 @@ Parameters:
     Description: Transit Gateway route table Id for NonProd
     Type: 'String'
     Default: 'tgw-rtb-11111111111111111'
+  TgwRtRoutesCountFunctionName:
+    Description: Name of the TgwRtRoutesCountFunction lambda
+    Type: 'String'
+    Default: 'tgw-route-tbl-routes-count-function'
+  McczTgwNewVpcRouteCWAlarmFunctionName:
+    Description: Name of the McczTgwNewVpcRouteCWAlarmFunction lambda
+    Type: 'String'
+    Default: 'mccz-tgw-new-vpc-routes-notification'
 
 Resources:
   ###########################################################################
@@ -51,10 +59,11 @@ Resources:
   TgwRtRoutesCountFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: 'tgw_route_tbl_routes_count_function'
+      FunctionName: !Ref TgwRtRoutesCountFunctionName
       CodeUri: src/
       Handler: tgw_rt_routes_count.lambda_handler
       Runtime: python3.7
+      Role: !GetAtt TgwRtRoutesCountFunctionRole.Arn
       Architectures:
         - x86_64
       Events:
@@ -69,13 +78,13 @@ Resources:
           MCCZ_TGW_ROUTE_TABLE_ID_PROD: !Ref McczTgwRouteTableIdProd
           MCCZ_TGW_ROUTE_TABLE_ID_NONPROD: !Ref McczTgwRouteTableIdNonProd
           CW_METRIC_NAMESPACE: 'ato'
-          CW_METRIC_PROD: 'mcz-tgw_route_tbl_routes_count_prod'
+          CW_METRIC_PROD: 'tgw_route_tbl_routes_count_prod'
           CW_METRIC_NONPROD: 'tgw_route_tbl_routes_count_nonprod'
 
   McczTgwNewVpcRouteCWAlarmFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: 'mccz_tgw_new_vpc_routes_notification'
+      FunctionName: !Ref McczTgwNewVpcRouteCWAlarmFunctionName
       CodeUri: src/
       Handler: mccz_tgw_new_vpc_routes_notification.lambda_handler
       Runtime: python3.7
@@ -97,12 +106,27 @@ Resources:
           SNS_TOPIC_ARN: !Ref AlarmNotificationTopic
 
   ###########################################################################
+  #  Cloudwatch LogGroup for lambda
+  ###########################################################################
+  TgwRtRoutesCountFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${TgwRtRoutesCountFunctionName}'
+      RetentionInDays: 7
+
+  McczTgwNewVpcRouteCWAlarmFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${McczTgwNewVpcRouteCWAlarmFunctionName}'
+      RetentionInDays: 7
+
+  ###########################################################################
   #  IAM Role
   ###########################################################################
-  McczTgwNewVpcRouteCWAlarmFunctionRole:
+  TgwRtRoutesCountFunctionRole:
     Type: 'AWS::IAM::Role'
     Properties:
-      RoleName: McczTgwNewVpcRouteCWAlarmFunctionRole
+      RoleName: !Sub ato-role-baseline-lambda-${TgwRtRoutesCountFunctionName}
       Path: '/service-role/'
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
@@ -113,8 +137,40 @@ Resources:
                 - 'lambda.amazonaws.com'
             Action:
               - 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
       Policies:
-        - PolicyName: McczTgwNewVpcRouteCWAlarmFunctionSNSPolicy
+        - PolicyName: !Sub ato-policy-baseline-lambda-${TgwRtRoutesCountFunctionName}
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: 'Allow'
+                Action:
+                  - 'cloudwatch:PutMetricData'
+                Resource: '*'
+              - Effect: 'Allow'
+                Action:
+                  - 'ec2:SearchTransitGatewayRoutes'
+                Resource: '*'
+
+  McczTgwNewVpcRouteCWAlarmFunctionRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: !Sub ato-role-baseline-lambda-${McczTgwNewVpcRouteCWAlarmFunctionName}
+      Path: '/service-role/'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - 'lambda.amazonaws.com'
+            Action:
+              - 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+      Policies:
+        - PolicyName: !Sub ato-policy-baseline-lambda-${McczTgwNewVpcRouteCWAlarmFunctionName}
           PolicyDocument:
             Version: 2012-10-17
             Statement:
@@ -123,6 +179,13 @@ Resources:
                   - 'sns:Publish'
                 Resource:
                   - !Ref AlarmNotificationTopic
+              - Effect: 'Allow'
+                Action:
+                  - 'dynamodb:Query*'
+                  - 'dynamodb:PutItem'
+                  - 'dynamodb:DeleteItem'
+                Resource:
+                  - !GetAtt McczVpcRoutesTable.Arn
   
   ###########################################################################
   #  Cloudwatch Alarms
@@ -140,7 +203,7 @@ Resources:
       Namespace: 'ato'
       Dimensions: 
         - Name: 'tgw_route_table_id'
-          Value: 'tgw-rtb-0b9f6576353fd370f'
+          Value: !Ref McczTgwRouteTableIdProd
       ComparisonOperator: GreaterThanOrEqualToThreshold
       EvaluationPeriods: '1'
       Period: '300'
@@ -159,6 +222,9 @@ Resources:
         - !Ref AlarmNotificationTopic
       MetricName: 'tgw_route_tbl_routes_count_nonprod'
       Namespace: 'ato'
+      Dimensions: 
+        - Name: 'tgw_route_table_id'
+          Value: !Ref McczTgwRouteTableIdNonProd
       ComparisonOperator: GreaterThanOrEqualToThreshold
       EvaluationPeriods: '1'
       Period: '300'
