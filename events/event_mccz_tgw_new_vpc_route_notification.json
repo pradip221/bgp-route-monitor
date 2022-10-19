@@ -1,0 +1,49 @@
+{
+    "Records": [
+        {
+            "eventID": "93cc8c43c3ca1a73eace459446a4f48a",
+            "eventName": "INSERT",
+            "eventVersion": "1.1",
+            "eventSource": "aws:dynamodb",
+            "awsRegion": "ap-southeast-2",
+            "dynamodb": {
+                "ApproximateCreationDateTime": 1665553936.0,
+                "Keys": {
+                    "HashKey": {
+                        "S": "tgw-rtb-0b9f6576353fd370f"
+                    },
+                    "SortKey": {
+                        "S": "10.0.2.0/24#def#xyz#vpc"
+                    }
+                },
+                "NewImage": {
+                    "RouteType": {
+                        "S": "static"
+                    },
+                    "State": {
+                        "S": "active"
+                    },
+                    "HashKey": {
+                        "S": "tgw-rtb-0b9f6576353fd370f"
+                    },
+                    "ResourceType": {
+                        "S": "vpc"
+                    },
+                    "SortKey": {
+                        "S": "10.0.2.0/24#def#xyz#vpc"
+                    },
+                    "DestinationCidrBlock": {
+                        "S": "10.0.2.0/24"
+                    },
+                    "TransitGatewayAttachmentId": {
+                        "S": "xyz"
+                    }
+                },
+                "SequenceNumber": "784900000000008118931141",
+                "SizeBytes": 225,
+                "StreamViewType": "NEW_AND_OLD_IMAGES"
+            },
+            "eventSourceARN": "arn:aws:dynamodb:ap-southeast-2:978697126183:table/McczVpcRoutesProd/stream/2022-10-12T01:20:50.463"
+        }
+    ]
+}

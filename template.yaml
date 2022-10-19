@@ -1,0 +1,202 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  tw-route-alarms
+
+  Sample SAM Template for tw-route-alarms
+
+Globals:
+  Function:
+    Timeout: 300
+
+Parameters:
+  AlarmNotificationTopic:
+    Description: SNS Topic ARN for sending notifications
+    Type: 'String'
+    Default: 'arn:aws:sns:ap-southeast-2:978697126183:AlarmNotificationTopic'
+  McczTgwRouteTableIdProd:
+    Description: Transit Gateway route table Id for Prod
+    Type: 'String'
+    Default: 'tgw-rtb-0b9f6576353fd370f'
+  McczTgwRouteTableIdNonProd:
+    Description: Transit Gateway route table Id for NonProd
+    Type: 'String'
+    Default: 'tgw-rtb-11111111111111111'
+
+Resources:
+  ###########################################################################
+  #  DynamoDB
+  ###########################################################################
+  McczVpcRoutesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: 'McczVpcRoutes'
+      AttributeDefinitions:
+        - AttributeName: 'HashKey'
+          AttributeType: 'S'
+        - AttributeName: 'SortKey'
+          AttributeType: 'S'
+      KeySchema:
+        - AttributeName: 'HashKey'
+          KeyType: 'HASH'
+        - AttributeName: 'SortKey'
+          KeyType: 'RANGE'
+      BillingMode: PAY_PER_REQUEST
+      StreamSpecification: 
+        StreamViewType: NEW_IMAGE
+      
+  ###########################################################################
+  #  Lambda
+  ###########################################################################
+  TgwRtRoutesCountFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: 'tgw_route_tbl_routes_count_function'
+      CodeUri: src/
+      Handler: tgw_rt_routes_count.lambda_handler
+      Runtime: python3.7
+      Architectures:
+        - x86_64
+      Events:
+        CloudWatchSource:
+          Type: Schedule
+          Properties:
+            # Runs every 5 minutes
+            Schedule: 'cron(0/5 * * * ? *)'
+      Environment:
+        Variables:
+          LOG_LEVEL: 'INFO'
+          MCCZ_TGW_ROUTE_TABLE_ID_PROD: !Ref McczTgwRouteTableIdProd
+          MCCZ_TGW_ROUTE_TABLE_ID_NONPROD: !Ref McczTgwRouteTableIdNonProd
+          CW_METRIC_NAMESPACE: 'ato'
+          CW_METRIC_PROD: 'mcz-tgw_route_tbl_routes_count_prod'
+          CW_METRIC_NONPROD: 'tgw_route_tbl_routes_count_nonprod'
+
+  McczTgwVpcRoutesUpsertFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: 'mccz_tgw_vpc_routes_upsert_function'
+      CodeUri: src/
+      Handler: mccz_tgw_vpc_routes_upsert.lambda_handler
+      Runtime: python3.7
+      Architectures:
+        - x86_64
+      Events:
+        CloudWatchSource:
+          Type: Schedule
+          Properties:
+            # Runs every 5 minutes
+            Schedule: 'cron(0/5 * * * ? *)'
+      Environment:
+        Variables:
+          LOG_LEVEL: 'INFO'
+          MCCZ_TGW_ROUTE_TABLE_ID_PROD: !Ref McczTgwRouteTableIdProd
+          MCCZ_TGW_ROUTE_TABLE_ID_NONPROD: !Ref McczTgwRouteTableIdNonProd
+          TABLE_MCCZ_VPC_ROUTES: !Ref McczVpcRoutesTable
+  
+  McczTgwNewVpcRouteCWAlarmFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: 'mccz_tgw_new_vpc_route_notification_function'
+      CodeUri: src/
+      Handler: mccz_tgw_new_vpc_route_notification.lambda_handler
+      Runtime: python3.7
+      Role: !GetAtt McczTgwNewVpcRouteCWAlarmFunctionRole.Arn
+      Architectures:
+        - x86_64
+      Events:
+        DDBEvent:
+          Type: DynamoDB
+          Properties:
+            Stream: !GetAtt McczVpcRoutesTable.StreamArn
+            StartingPosition: TRIM_HORIZON
+            BatchSize: 1
+            Enabled: true
+      Environment:
+        Variables:
+          LOG_LEVEL: 'INFO'
+          SNS_TOPIC_ARN: !Ref AlarmNotificationTopic
+
+  ###########################################################################
+  #  IAM Role
+  ###########################################################################
+  McczTgwNewVpcRouteCWAlarmFunctionRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: McczTgwNewVpcRouteCWAlarmFunctionRole
+      Path: '/service-role/'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - 'lambda.amazonaws.com'
+            Action:
+              - 'sts:AssumeRole'
+      Policies:
+        - PolicyName: McczTgwNewVpcRouteCWAlarmFunctionSNSPolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: 'Allow'
+                Action:
+                  - 'sns:Publish'
+                Resource:
+                  - !Ref AlarmNotificationTopic
+        - PolicyName: McczTgwNewVpcRouteCWAlarmFunctionDynamoDBStreamPolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: 'Allow'
+                Action:
+                  - 'dynamodb:DescribeStream'
+                  - 'dynamodb:GetRecords'
+                  - 'dynamodb:GetShardIterator'
+                  - 'dynamodb:ListStreams'
+                Resource:
+                  - !GetAtt McczVpcRoutesTable.StreamArn
+  
+  ###########################################################################
+  #  Cloudwatch Alarms
+  ###########################################################################
+  TgwRouteTblRoutesCountProdAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: TgwRouteTblRoutesCountProdAlarm
+      AlarmDescription: Alarms when VPN Propagated route count of the Prod Transit Gateway Route Table breaches the thresold
+      AlarmActions:
+        - !Ref AlarmNotificationTopic
+      OKActions:
+        - !Ref AlarmNotificationTopic
+      MetricName: 'tgw_route_tbl_routes_count_prod'
+      Namespace: 'ato'
+      Dimensions: 
+        - Name: 'tgw_route_table_id'
+          Value: 'tgw-rtb-0b9f6576353fd370f'
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      EvaluationPeriods: '1'
+      Period: '300'
+      Statistic: Sum
+      Threshold: '800'
+      TreatMissingData: notBreaching
+
+  TgwRouteTblRoutesCountNonProdAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: TgwRouteTblRoutesCountNonProdAlarm
+      AlarmDescription: Alarms when VPN Propagated route count of the NonProd Transit Gateway Route Table breaches the thresold
+      AlarmActions:
+        - !Ref AlarmNotificationTopic
+      OKActions:
+        - !Ref AlarmNotificationTopic
+      MetricName: 'tgw_route_tbl_routes_count_nonprod'
+      Namespace: 'ato'
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      EvaluationPeriods: '1'
+      Period: '300'
+      Statistic: Sum
+      Threshold: '800'
+      TreatMissingData: notBreaching
+
+  
