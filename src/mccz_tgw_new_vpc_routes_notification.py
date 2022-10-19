@@ -51,7 +51,7 @@ def get_vpc_propagated_routes_from_tgw(tgw_route_table_id):
                 "State": "active"
             },
             {
-                "DestinationCidrBlock": "10.5.0.0/24",
+                "DestinationCidrBlock": "10.11.3.0/24",
                 "TransitGatewayAttachments": [
                     {
                         "ResourceId": "abc",
@@ -63,10 +63,10 @@ def get_vpc_propagated_routes_from_tgw(tgw_route_table_id):
                 "State": "active"
             },
             {
-                "DestinationCidrBlock": "10.9.2.0/24",
+                "DestinationCidrBlock": "10.5.3.0/24",
                 "TransitGatewayAttachments": [
                     {
-                        "ResourceId": "def",
+                        "ResourceId": "abc",
                         "TransitGatewayAttachmentId": "xyz",
                         "ResourceType": "vpc"
                     }
@@ -75,7 +75,7 @@ def get_vpc_propagated_routes_from_tgw(tgw_route_table_id):
                 "State": "active"
             },
             {
-                "DestinationCidrBlock": "10.8.2.0/24",
+                "DestinationCidrBlock": "10.14.2.0/24",
                 "TransitGatewayAttachments": [
                     {
                         "ResourceId": "abc",
@@ -87,10 +87,10 @@ def get_vpc_propagated_routes_from_tgw(tgw_route_table_id):
                 "State": "active"
             },
             {
-                "DestinationCidrBlock": "10.11.2.0/24",
+                "DestinationCidrBlock": "10.13.2.0/24",
                 "TransitGatewayAttachments": [
                     {
-                        "ResourceId": "def",
+                        "ResourceId": "abc",
                         "TransitGatewayAttachmentId": "pqr",
                         "ResourceType": "vpc"
                     }

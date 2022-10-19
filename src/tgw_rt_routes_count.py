@@ -22,23 +22,88 @@ logger.setLevel(logLevel)
 def get_tgw_rt_vpn_propagated_routes_count(tgw_route_table_id):
     '''Get the routes for the transit gateway for route_type=Propagated & resource_type=VPN'''
     client = boto3.client('ec2')
-    response = client.search_transit_gateway_routes(
-        TransitGatewayRouteTableId=tgw_route_table_id,
-        Filters=[
+    # response = client.search_transit_gateway_routes(
+    #     TransitGatewayRouteTableId=tgw_route_table_id,
+    #     Filters=[
+    #         {
+    #             'Name': 'resource-type',
+    #             'Values': [
+    #                 'vpn',
+    #             ]
+    #         },
+    #         {
+    #             'Name': 'type',
+    #             'Values': [
+    #                 'propagated',
+    #             ]
+    #         },
+    #     ],
+    # )
+    response = {
+        "Routes": [
             {
-                'Name': 'resource-type',
-                'Values': [
-                    'vpn',
-                ]
+                "DestinationCidrBlock": "10.6.3.0/24",
+                "TransitGatewayAttachments": [
+                    {
+                        "ResourceId": "abc",
+                        "TransitGatewayAttachmentId": "xyz",
+                        "ResourceType": "vpc"
+                    }
+                ],
+                "Type": "static",
+                "State": "active"
             },
             {
-                'Name': 'type',
-                'Values': [
-                    'propagated',
-                ]
+                "DestinationCidrBlock": "10.11.3.0/24",
+                "TransitGatewayAttachments": [
+                    {
+                        "ResourceId": "abc",
+                        "TransitGatewayAttachmentId": "xyz",
+                        "ResourceType": "vpc"
+                    }
+                ],
+                "Type": "static",
+                "State": "active"
+            },
+            {
+                "DestinationCidrBlock": "10.5.3.0/24",
+                "TransitGatewayAttachments": [
+                    {
+                        "ResourceId": "abc",
+                        "TransitGatewayAttachmentId": "xyz",
+                        "ResourceType": "vpc"
+                    }
+                ],
+                "Type": "static",
+                "State": "active"
+            },
+            {
+                "DestinationCidrBlock": "10.14.2.0/24",
+                "TransitGatewayAttachments": [
+                    {
+                        "ResourceId": "abc",
+                        "TransitGatewayAttachmentId": "pqr",
+                        "ResourceType": "vpc"
+                    }
+                ],
+                "Type": "static",
+                "State": "active"
+            },
+            {
+                "DestinationCidrBlock": "10.13.2.0/24",
+                "TransitGatewayAttachments": [
+                    {
+                        "ResourceId": "abc",
+                        "TransitGatewayAttachmentId": "pqr",
+                        "ResourceType": "vpc"
+                    }
+                ],
+                "Type": "static",
+                "State": "active"
             },
         ],
-    )
+        "AdditionalRoutesAvailable": False
+    }
     logger.info("count of routes of TransitGatewayRouteTableId: %s is %s",
                 tgw_route_table_id, len(response["Routes"]))
     return len(response["Routes"])
