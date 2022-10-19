@@ -30,7 +30,7 @@ Resources:
   McczVpcRoutesTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: 'McczVpcRoutes'
+      TableName: 'McczVpcRoutesTable'
       AttributeDefinitions:
         - AttributeName: 'HashKey'
           AttributeType: 'S'
@@ -72,13 +72,14 @@ Resources:
           CW_METRIC_PROD: 'mcz-tgw_route_tbl_routes_count_prod'
           CW_METRIC_NONPROD: 'tgw_route_tbl_routes_count_nonprod'
 
-  McczTgwVpcRoutesUpsertFunction:
+  McczTgwNewVpcRouteCWAlarmFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: 'mccz_tgw_vpc_routes_upsert_function'
+      FunctionName: 'mccz_tgw_new_vpc_routes_notification'
       CodeUri: src/
-      Handler: mccz_tgw_vpc_routes_upsert.lambda_handler
+      Handler: mccz_tgw_new_vpc_routes_notification.lambda_handler
       Runtime: python3.7
+      Role: !GetAtt McczTgwNewVpcRouteCWAlarmFunctionRole.Arn
       Architectures:
         - x86_64
       Events:
@@ -93,28 +94,6 @@ Resources:
           MCCZ_TGW_ROUTE_TABLE_ID_PROD: !Ref McczTgwRouteTableIdProd
           MCCZ_TGW_ROUTE_TABLE_ID_NONPROD: !Ref McczTgwRouteTableIdNonProd
           TABLE_MCCZ_VPC_ROUTES: !Ref McczVpcRoutesTable
-  
-  McczTgwNewVpcRouteCWAlarmFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      FunctionName: 'mccz_tgw_new_vpc_route_notification_function'
-      CodeUri: src/
-      Handler: mccz_tgw_new_vpc_route_notification.lambda_handler
-      Runtime: python3.7
-      Role: !GetAtt McczTgwNewVpcRouteCWAlarmFunctionRole.Arn
-      Architectures:
-        - x86_64
-      Events:
-        DDBEvent:
-          Type: DynamoDB
-          Properties:
-            Stream: !GetAtt McczVpcRoutesTable.StreamArn
-            StartingPosition: TRIM_HORIZON
-            BatchSize: 1
-            Enabled: true
-      Environment:
-        Variables:
-          LOG_LEVEL: 'INFO'
           SNS_TOPIC_ARN: !Ref AlarmNotificationTopic
 
   ###########################################################################
@@ -144,18 +123,6 @@ Resources:
                   - 'sns:Publish'
                 Resource:
                   - !Ref AlarmNotificationTopic
-        - PolicyName: McczTgwNewVpcRouteCWAlarmFunctionDynamoDBStreamPolicy
-          PolicyDocument:
-            Version: 2012-10-17
-            Statement:
-              - Effect: 'Allow'
-                Action:
-                  - 'dynamodb:DescribeStream'
-                  - 'dynamodb:GetRecords'
-                  - 'dynamodb:GetShardIterator'
-                  - 'dynamodb:ListStreams'
-                Resource:
-                  - !GetAtt McczVpcRoutesTable.StreamArn
   
   ###########################################################################
   #  Cloudwatch Alarms
