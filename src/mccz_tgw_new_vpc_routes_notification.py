@@ -19,88 +19,23 @@ def get_vpc_propagated_routes_from_tgw(tgw_route_table_id):
     '''Get the routes for the transit gateway for route_type=Propagated & resource_type=VPC'''
     client = boto3.client('ec2')
 
-    # response = client.search_transit_gateway_routes(
-    #     TransitGatewayRouteTableId=tgw_route_table_id,
-    #     Filters=[
-    #         {
-    #             'Name': 'resource-type',
-    #             'Values': [
-    #                 'vpc',
-    #             ]
-    #         },
-    #         {
-    #             'Name': 'type',
-    #             'Values': [
-    #                 'propagated',
-    #             ]
-    #         },
-    #     ],
-    # )
-    response = {
-        "Routes": [
+    response = client.search_transit_gateway_routes(
+        TransitGatewayRouteTableId=tgw_route_table_id,
+        Filters=[
             {
-                "DestinationCidrBlock": "10.6.3.0/24",
-                "TransitGatewayAttachments": [
-                    {
-                        "ResourceId": "abc",
-                        "TransitGatewayAttachmentId": "xyz",
-                        "ResourceType": "vpc"
-                    }
-                ],
-                "Type": "static",
-                "State": "active"
+                'Name': 'resource-type',
+                'Values': [
+                    'vpc',
+                ]
             },
             {
-                "DestinationCidrBlock": "10.11.3.0/24",
-                "TransitGatewayAttachments": [
-                    {
-                        "ResourceId": "abc",
-                        "TransitGatewayAttachmentId": "xyz",
-                        "ResourceType": "vpc"
-                    }
-                ],
-                "Type": "static",
-                "State": "active"
-            },
-            {
-                "DestinationCidrBlock": "10.5.3.0/24",
-                "TransitGatewayAttachments": [
-                    {
-                        "ResourceId": "abc",
-                        "TransitGatewayAttachmentId": "xyz",
-                        "ResourceType": "vpc"
-                    }
-                ],
-                "Type": "static",
-                "State": "active"
-            },
-            {
-                "DestinationCidrBlock": "10.14.2.0/24",
-                "TransitGatewayAttachments": [
-                    {
-                        "ResourceId": "abc",
-                        "TransitGatewayAttachmentId": "pqr",
-                        "ResourceType": "vpc"
-                    }
-                ],
-                "Type": "static",
-                "State": "active"
-            },
-            {
-                "DestinationCidrBlock": "10.13.2.0/24",
-                "TransitGatewayAttachments": [
-                    {
-                        "ResourceId": "abc",
-                        "TransitGatewayAttachmentId": "pqr",
-                        "ResourceType": "vpc"
-                    }
-                ],
-                "Type": "static",
-                "State": "active"
+                'Name': 'type',
+                'Values': [
+                    'propagated',
+                ]
             },
         ],
-        "AdditionalRoutesAvailable": False
-    }
+    )
     logger.debug("Routes of TransitGatewayRouteTableId: %s is %s",
                 tgw_route_table_id, response["Routes"])
     tgw_routes_dict = massage_tgw_data(tgw_route_table_id, response["Routes"])
@@ -114,6 +49,7 @@ def massage_tgw_data(tgw_route_table_id, tgw_routes):
     for route in tgw_routes:
         tgw_attachments = route['TransitGatewayAttachments']
         for tgw_attachment in tgw_attachments:
+            #pylint: disable=[C0303:line-too-long]
             key = route['DestinationCidrBlock'] + "#" + tgw_attachment['ResourceId'] + "#" + tgw_attachment['TransitGatewayAttachmentId'] + "#" + tgw_attachment['ResourceType']
             item = {
                 'HashKey': tgw_route_table_id,

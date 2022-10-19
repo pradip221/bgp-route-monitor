@@ -13,9 +13,8 @@ The repo is used for the following use cases -
 
 ### Send SNS notification when a new VPC route is propagated into the mccz-tgw-route-table
 
-- mccz_tgw_vpc_routes_upsert - Lambda function to retrieve the VPC propagated routes of the mccz-tgw-route-table and write them into DynamoDB 
-- McczVpcRoutes - DynamoDB tables for Prod & nonProd entries of the VPC propagated routes
-- mccz_tgw_new_vpc_route_notification - Lambda function which is inovked by the dynamodb stream and sends SNS notification for any new VPC propagated route entry
+- mccz_tgw_new_vpc_routes_notification - Lambda function to retrieve the VPC propagated routes of the mccz-tgw-route-table, compare them with the same in DynamoDB and raises a notification for all new routes identified, while syncing DynamoDB entries with the previous route records.
+- McczVpcRoutesTable - DynamoDB tables for Prod & nonProd entries of the VPC propagated routes
 
 ## Repo Structure 
 - src - Code for the Lambda function
